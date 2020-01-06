@@ -1,0 +1,98 @@
+service: serverless-dynamo-crud
+
+plugins:
+  - serverless-offline
+  - serverless-dynamodb-local
+  - serverless-webpack
+
+custom:
+  tableName: "books-${self:provider.stage}"
+  authorizer: 
+    name: api_authorizer
+    AuthorizerResultTtlInSeconds: 0
+    IdentitySource: method.request.header.Authorization
+    IdentityValidationExpression: Bearer .*
+    type: token
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  
+  stage: dev
+  region: ap-south-1
+
+  environment: 
+    BOOKS_TABLE_NAME: ${self:custom.tableName}
+    SHA256_PASSWORD_SALT: f2d81a260dea8a100dd517984e53c56a7523d96942a834b9cdc249bd4e8c7aa9
+  
+  iamRoleStatements: 
+    - Effect: Allow
+      Action: 
+        - dynamodb:DescribeTable
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource: 'arn:aws:dynamodb:ap-south-1:*:*'
+
+functions:
+  fetch_books:
+    handler: handler.getList
+     events:
+       - http: 
+          method: GET
+          path: books
+          cors: ${file(./cors.yml)}
+          authorizer: ${self:custom.authorizer}
+  fetch_book_details:
+    handler: handler.getOne
+      events:
+        - http: 
+            method: GET
+            path: books/{id}
+            cors: ${file(./cors.yml)}
+            authorizer: ${self:custom.authorizer}
+  add_book:
+    handler: handler.addBook
+      events:
+        - http: 
+            method: POST
+            path: books
+            cors: ${file(./cors.yml)}
+            authorizer: ${self:custom.authorizer}
+  update_book:
+    handler: handler.updateBook
+      events:
+        - http: 
+            method: PUT
+            path: books/{id}
+            cors: ${file(./cors.yml)}
+            authorizer: ${self:custom.authorizer}
+  delete_book:
+    handler: handler.deleteBook
+      events:
+        - http: 
+            method: DELETE 
+            path: books/{id}
+            cors: ${file(./cors.yml)}
+            authorizer: ${self:custom.authorizer}
+  api_authorizer:
+    handler: lambda.authorize
+
+resources:
+  Resources:
+    books:
+      Type: AWS::DynamoDB:booksTable
+      Properties: 
+        TableName: ${self:custom.tableName}
+        AttributeDefinitions: 
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1 
