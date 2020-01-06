@@ -24,7 +24,7 @@ export const getList: APIGatewayProxyHandler = async () => {
       TableName: process.env.BOOKS_TABLE_NAME,
     }).promise();
 
-    return httpSuccess(books);
+    return httpSuccess(books.Items);
   } catch (e) {
     return handleError(e);
   }
